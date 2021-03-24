@@ -5,7 +5,10 @@ Functions to handle and process primers
 import os
 import csv
 import re
+import sys
 import pybedtools
+import tempfile
+import shutil
 
 def import_bed_file(bed):
     """
@@ -63,7 +66,7 @@ def create_primer_info(id):
 
 def create_reverse_primer_info():
     """
-    Create the data structure for the primer info
+    Create the data structure for the primer dictionary
     """
     right = {'right' : {'start': set(), 'end': set(), 'strand': '-'}}
     return right
@@ -71,7 +74,7 @@ def create_reverse_primer_info():
 
 def create_forward_primer_info():
     """
-    Create the data structure for the primer info
+    Create the data structure for the primer dictionary.
     """
     left = {'left' : {'start': set(), 'end': set(), 'strand': '+'}}
     return left
@@ -103,23 +106,31 @@ def create_amplicon(primers, type, path='.'):
     Create an amplicon data structure.
     """
     amplicons = list()
+    primer_ids = list()
     if type == 'unique_amplicons':
-        amplicons = create_unique_amplicon(primers=primers, path=path)
+        amplicons = create_unique_amplicon(primers=primers,
+                                           path=path,
+                                           first=first_primer_id,
+                                           last=last_primer_id,
+                                           is_unique=True)
     elif type == 'full' or type == 'no_primers':
         for id in primers:
             try:
                 if type == 'full':
-                    amplicons.append(create_full_amplicon(id=id, primer=primers[id]))
+                    amplicons.append(create_full_amplicon(id=id,
+                                                          primer=primers[id],
+                                                          first=first_primer_id,
+                                                          last=last_primer_id))
                 elif type == 'no_primers':
                     amplicons.append(create_no_primer_amplicon(id=id, primer=primers[id]))
             except:
                 print(f'Skipping primer {id}...')
     else:
-        print('Invalid amplicon type...')
+        sys.exit('Invalid amplicon type...')
     return amplicons
 
 
-def create_full_amplicon(id, primer):
+def create_full_amplicon(id, primer, first=None, last=None, is_unique=False):
     """
     Create the full amplicon including primers.  For those with
     alternative primers, the amplicon will include the largest
@@ -128,6 +139,9 @@ def create_full_amplicon(id, primer):
     Arguments:
         * id: the id number of the primer
         * primer: a dictionary containg the primer information
+        * first: the id for the first amplicon
+        * last: the id for the last amplicon
+        * is_unique: a Boolean to apply unique amplicons
 
     Return Value:
         Returns a list containing primer details including:
@@ -140,21 +154,34 @@ def create_full_amplicon(id, primer):
     """
     amplicon = list()
     amplicon.append(primer['chr'])
-    amplicon.append(str(min(primer['left']['start'])))
-    amplicon.append(str(max(primer['right']['end'])))
+    if is_unique:
+        if str(id) == str(first):
+            amplicon.append(str(max(primer['left']['end'])))
+            amplicon.append(str(min(primer['right']['end'])))
+        elif str(id) == str(last):
+            amplicon.append(str(min(primer['left']['start'])))
+            amplicon.append(str(max(primer['right']['start'])))
+        else:
+            amplicon.append(str(min(primer['left']['start'])))
+            amplicon.append(str(max(primer['right']['end'])))
+    else:
+        amplicon.append(str(min(primer['left']['start'])))
+        amplicon.append(str(max(primer['right']['end'])))
     amplicon.append(f'nCoV-2019_{id}')
     amplicon.append(str(primer['qual']))
     amplicon.append('+')
     return amplicon
 
 
-def create_no_primer_amplicon(id, primer):
+def create_no_primer_amplicon(id, primer, first, last):
     """
     Create an amplicon without primers.
 
     Arguments:
         * id: the id/index of the amplicons
         * primer: a primer dictionary
+        * first: id of the first primer
+        * last: id of the last primer
     
     Return Value:
         Returns an amplicon as a list
@@ -192,12 +219,23 @@ def write_amplicon_to_bed(amplicons, outfile):
 
 def create_unique_amplicon(primers, path='.'):
     """
-    Create unique amplicon regions by using the no_primer amplicons
+    Create unique amplicon regions by using the full amplicons
     and removing any overlapping regions from other amplicons.
     """
     amplicons = list()
     unique_amplicons = list()
-    amplicons = create_amplicon(primers=primers, type='full')
+    primer_ids = list()
+    for primer_id in primers.keys():
+        primer_ids.append(primer_id)
+    last_primer_id = max(primer_ids)
+    first_primer_id = min(primer_ids)
+    #amplicons = create_amplicon(primers=primers, type='full')
+    for id in primers:
+        amplicons.append(create_full_amplicon(id=id,
+                                              primer=primers[id],
+                                              first=first_primer_id,
+                                              last=last_primer_id,
+                                              is_unique=True))
     for index, amplicon in enumerate(amplicons):
         # create a list of amplicons to remove
         tmp_amplicon = list()
