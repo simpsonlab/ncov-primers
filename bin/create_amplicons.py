@@ -17,6 +17,8 @@ def init_args():
                         help='BED file to write amplicons')
     parser.add_argument('-t', '--type', default='unique_amplicons',
                         help='Type of amplicons to generate (unique_amplicons, full, no_primers)')
+    parser.add_argument('-k', '--keep', action='store_true',
+                        help='Delete the temporary BED file directory')
     return parser.parse_args()
 
 
@@ -40,13 +42,13 @@ def main():
     else:
         sys.exit('Invalid amplicon type...')
     write_amplicon_to_bed(amplicons=amplicons, outfile=args.output)
+    if not args.keep:
+        try:
+            print(f"Removing temporary directory {tempdir}...")
+            shutil.rmtree(tempdir)
+        except:
+            print(f"Unable to remove temporary directory {tempdir}")
     print(f"BED file written to {args.output}...")
-    print(f"Removing temporary directory {tempdir}...")
-    try:
-        shutil.rmtree(tempdir)
-    except:
-        print(f"Unable to remove temporary directory {tempdir}")
-
 
 if __name__ == '__main__':
     main()
