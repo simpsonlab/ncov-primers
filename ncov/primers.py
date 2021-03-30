@@ -1,5 +1,7 @@
 """
-Functions to handle and process primers
+Functions to handle and process primers.  This assume the primers have an
+integer ID within the name field of the BED with the first primer being 1
+and the nth being the total number of amplicons.
 """
 
 import os
@@ -7,8 +9,6 @@ import csv
 import re
 import sys
 import pybedtools
-import tempfile
-import shutil
 
 def import_bed_file(bed):
     """
@@ -225,6 +225,7 @@ def create_unique_amplicon(primers, path='.'):
     amplicons = list()
     unique_amplicons = list()
     primer_ids = list()
+    empty_amplicons = list()
     for primer_id in primers.keys():
         primer_ids.append(primer_id)
     last_primer_id = max(primer_ids)
@@ -237,15 +238,24 @@ def create_unique_amplicon(primers, path='.'):
                                               last=last_primer_id,
                                               is_unique=True))
     for index, amplicon in enumerate(amplicons):
-        # create a list of amplicons to remove
+        # create a bed file with amplicon at index, then create a bed file
+        # with all the other amplicons, subtract all other amplicons from
+        # the amplicon at index
         tmp_amplicon = list()
         tmp_amplicon.append(amplicon)
         tmp_amplicons = amplicons.copy()
+        
+        # remove the current index amplicon from the list of amplicons
         del(tmp_amplicons[index])
         id_file = f'{index}.bed'
+        
+        # write the amplicon at the index to a file
         outfile = '/'.join([path, str(index), id_file])
         write_amplicon_to_bed(amplicons=tmp_amplicon, outfile=outfile)
         amplicon_bed = pybedtools.BedTool(outfile)
+        
+        # write the list of amplicons not including the current index amplicon
+        # to a file
         id_remove_file = f'{index}.remove.bed'
         remove_outfile = '/'.join([path, str(index), id_remove_file])
         write_amplicon_to_bed(amplicons=tmp_amplicons, outfile=remove_outfile)
@@ -261,14 +271,9 @@ def create_unique_amplicon(primers, path='.'):
         with open(amplicon_unique_outfile, 'r') as amp_file:
             reader = csv.reader(amp_file, delimiter='\t')
             for line in reader:
-                unique_amplicons.append(line)
+                if len(line) > 0:
+                    unique_amplicons.append(line)
+                else:
+                    empty_amplicons.append(index)
+                    del(amplicons[int(index)])
     return unique_amplicons
-
-
-def main(file, path='./qc_primers'):
-    primers = import_bed_file(bed=file)
-    primer_dict = dict()
-    for primer in primers:
-        add_primer(primers=primer_dict, primer=primer)
-    return primer_dict
-
