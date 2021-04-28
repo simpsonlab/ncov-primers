@@ -17,8 +17,10 @@ def init_args():
                         help='BED file to write amplicons')
     parser.add_argument('-t', '--type', default='unique_amplicons',
                         help='Type of amplicons to generate (unique_amplicons, full, no_primers)')
+    parser.add_argument('-i', '--idloc', default=1, type=int,
+                        help='location of the amplicon id within the amplicon name, 0-based, _ delimited')
     parser.add_argument('-k', '--keep', action='store_true',
-                        help='Delete the temporary BED file directory')
+                        help='Do not delete the temporary BED file directory')
     return parser.parse_args()
 
 
@@ -31,7 +33,7 @@ def main():
     primer_dict = dict()
     tempdir = tempfile.mkdtemp(dir='.', prefix='tmp')
     for primer in primers:
-        add_primer(primers=primer_dict, primer=primer)
+        add_primer(primers=primer_dict, primer=primer, idloc=args.idloc)
     amplicons = list()
     if args.type == 'full' or args.type == 'no_primers':
         amplicons = create_amplicon(primers=primer_dict, type=args.type,
