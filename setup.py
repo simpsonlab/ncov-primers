@@ -17,6 +17,9 @@ setuptools.setup(
     url="https://github.com/simpsonlab/ncov_primers",
     packages=setuptools.find_packages(),
     license="MIT",
+    install_requires=[
+        'pybedtools',
+    ],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

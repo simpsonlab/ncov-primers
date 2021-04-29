@@ -80,11 +80,11 @@ def create_forward_primer_info():
     return left
 
 
-def add_primer(primers, primer):
+def add_primer(primers, primer, idloc=1):
     """
     Add a primer to the primer dictionary. 
     """
-    id = get_amplicon_id(primer=primer)
+    id = get_amplicon_id(primer=primer, idloc=idloc)
     if id not in primers.keys():
         primers[id] = dict()
         primers[id]['chr'] = 'MN908947.3'
